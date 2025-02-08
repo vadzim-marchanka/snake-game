@@ -129,28 +129,84 @@ const fruitColors = [
 const SnakeSvg = {
   defs: (
     <defs>
-      <pattern id="scales" width="20" height="20" patternUnits="userSpaceOnUse">
-        <path d="M 0 10 Q 10 0, 20 10 Q 10 20, 0 10" fill="none" stroke="#2E7D32" strokeWidth="1"/>
+      <pattern id="scales" width="10" height="10" patternUnits="userSpaceOnUse">
+        <path d="M 0 5 Q 5 0, 10 5 Q 5 10, 0 5" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeOpacity="0.3"
+              strokeWidth="1"/>
       </pattern>
+      <filter id="texture">
+        <feTurbulence type="turbulence" baseFrequency="0.7" numOctaves="2" result="noise"/>
+        <feComposite in="SourceGraphic" in2="noise" operator="arithmetic" k1="0" k2="0.1" k3="0.1" k4="0"/>
+      </filter>
     </defs>
   ),
-  head: (direction: Direction) => (
+  body: (segment: Position, index: number) => {
+    const defaultColors = ['#66BB6A', '#81C784', '#A5D6A7', '#C8E6C9'];
+    let baseColor = segment.fruitType !== undefined ? fruitColors[segment.fruitType] : defaultColors[0];
+    
+    // Convert hex to RGB for easier manipulation
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : null;
+    };
+
+    // Adjust color based on position in snake
+    const rgb = hexToRgb(baseColor);
+    if (rgb) {
+      // Create more pronounced variations based on segment index
+      const variation = Math.sin(index * 0.6) * 60; // Increased amplitude and slower frequency
+      const darken = Math.max(0, Math.min(255, variation));
+      
+      // Add brightness variation
+      const brightness = Math.cos(index * 0.3) * 30; // Additional brightness variation
+      
+      const r = Math.max(0, Math.min(255, rgb.r - darken + brightness));
+      const g = Math.max(0, Math.min(255, rgb.g - darken + brightness));
+      const b = Math.max(0, Math.min(255, rgb.b - darken + brightness));
+      
+      baseColor = `rgb(${r}, ${g}, ${b})`;
+    }
+    
+    return (
+      <svg width="100%" height="100%" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <g filter="url(#texture)">
+          <rect width="40" height="40" fill={baseColor}/>
+          <rect width="40" height="40" fill="url(#scales)" style={{ color: baseColor }}/>
+          <rect width="40" height="40" fill="white" fillOpacity={Math.abs(Math.sin(index * 0.6)) * 0.15}/>
+        </g>
+      </svg>
+    );
+  },
+  head: (direction: Direction, segment: Position) => {
+    const defaultColor = '#4CAF50';
+    const color = segment.fruitType !== undefined ? fruitColors[segment.fruitType] : defaultColor;
+    
+    return (
     <svg width="100%" height="100%" viewBox="0 0 45 40" fill="none" xmlns="http://www.w3.org/2000/svg">
       <g transform={`rotate(${getRotationAngle(direction)} 22.5 20)`}>
-        {/* Base head shape */}
-        <path d="M 0 0 
-                 L 40 0 
-                 Q 45 0, 45 5
-                 L 45 35
-                 Q 45 40, 40 40
-                 L 0 40
-                 Q -5 40, -5 35
-                 L -5 5
-                 Q -5 0, 0 0" 
-              fill="#4CAF50"/>
-        
-        {/* Scales on head */}
-        <rect x="0" y="0" width="40" height="40" fill="url(#scales)" fillOpacity="0.3"/>
+        <g filter="url(#texture)">
+          {/* Base head shape */}
+          <path d="M 0 0 
+                   L 40 0 
+                   Q 45 0, 45 5
+                   L 45 35
+                   Q 45 40, 40 40
+                   L 0 40
+                   Q -5 40, -5 35
+                   L -5 5
+                   Q -5 0, 0 0" 
+                fill={color}/>
+          
+          {/* Scales on head */}
+          <rect x="0" y="0" width="40" height="40" fill="url(#scales)" style={{ color }}/>
+          <rect x="0" y="0" width="40" height="40" fill="white" fillOpacity="0.1"/>
+        </g>
         
         {/* Eyes */}
         <ellipse cx="30" cy="12" rx="6" ry="8" fill="white"/>
@@ -162,8 +218,8 @@ const SnakeSvg = {
         <circle cx="28" cy="26" r="2" fill="white"/>
         
         {/* Nostrils */}
-        <circle cx="42" cy="12" r="1.5" fill="#2E7D32"/>
-        <circle cx="42" cy="28" r="1.5" fill="#2E7D32"/>
+        <circle cx="42" cy="12" r="1.5" fill={color === defaultColor ? '#2E7D32' : color}/>
+        <circle cx="42" cy="28" r="1.5" fill={color === defaultColor ? '#2E7D32' : color}/>
         
         {/* Tongue */}
         <path d="M 45 20 
@@ -176,18 +232,7 @@ const SnakeSvg = {
               fill="none"/>
       </g>
     </svg>
-  ),
-  body: (segment: Position) => {
-    const defaultColors = ['#66BB6A', '#81C784', '#A5D6A7', '#C8E6C9'];
-    const color = segment.fruitType !== undefined ? fruitColors[segment.fruitType] : defaultColors[0];
-    
-    return (
-      <svg width="100%" height="100%" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="40" height="40" fill={color}/>
-        <rect width="40" height="40" fill="url(#scales)" fillOpacity="0.3"/>
-      </svg>
-    );
-  }
+  )}
 };
 
 type SnakeRendererProps = {
@@ -230,7 +275,7 @@ export const SnakeRenderer = ({ gameState, onReset }: SnakeRendererProps) => {
                 top: segment.y * CELL_SIZE,
               }}
             >
-              {isHead ? SnakeSvg.head(direction) : SnakeSvg.body(segment)}
+              {isHead ? SnakeSvg.head(direction, segment) : SnakeSvg.body(segment, index)}
             </div>
           );
         })}
