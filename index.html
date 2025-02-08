@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #1a202c;
+            font-family: monospace;
+        }
+
+        #score-container {
+            background-color: #2d3748;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #score {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #48bb78;
+        }
+
+        #game-board {
+            position: relative;
+            width: 800px;
+            height: 800px;
+            background-color: #2d3748;
+            border: 4px solid #48bb78;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .snake-segment {
+            position: absolute;
+            width: 38px;
+            height: 38px;
+            transition: left 0.15s linear, top 0.15s linear;
+        }
+
+        .food {
+            position: absolute;
+            width: 38px;
+            height: 38px;
+        }
+
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            display: none;
+        }
+
+        #game-over button {
+            background-color: #48bb78;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 1rem;
+        }
+
+        #game-over button:hover {
+            background-color: #38a169;
+        }
+    </style>
+</head>
+<body>
+    <div id="score-container">
+        <div id="score">Score: 0</div>
+    </div>
+    <div id="game-board"></div>
+    <div id="game-over">
+        <h2>Game Over!</h2>
+        <p>Your score: <span id="final-score">0</span></p>
+        <button onclick="resetGame()">Play Again</button>
+    </div>
+
+    <script>
+        const GRID_SIZE = 20;
+        const CELL_SIZE = 40;
+        const GAME_SPEED = 150;
+        const INITIAL_SNAKE = [
+            { x: 10, y: 10 },
+            { x: 10, y: 11 }
+        ];
+        const INITIAL_DIRECTION = { x: 0, y: -1 };
+        const FOOD_COUNT = 10;
+
+        // SVG definitions for fruits
+        const fruitSvgs = [
+            // Apple
+            `<svg width="100%" height="100%" viewBox="0 0 30 35" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="15" cy="20" r="15" fill="#FF5252"/>
+                <path d="M 15 5 Q 10 0, 12 -5" stroke="#4CAF50" stroke-width="2"/>
+                <path d="M 15 5 L 18 0" stroke="#4CAF50" stroke-width="2"/>
+                <path d="M 7 12 Q 10 8, 13 12" fill="none" stroke="white" stroke-width="1" opacity="0.5"/>
+            </svg>`,
+            // Orange
+            `<svg width="100%" height="100%" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="20" cy="20" r="18" fill="#FF9800"/>
+                <path d="M 20 2 Q 15 -3, 20 -5" stroke="#4CAF50" stroke-width="2"/>
+                <path d="M 20 2 L 23 -3" stroke="#4CAF50" stroke-width="2"/>
+                <path d="M 20 5 L 35 20 L 20 35 L 5 20 Z" stroke="#E65100" stroke-width="1" fill="none"/>
+                <path d="M 5 20 L 35 20 M 20 5 L 20 35" stroke="#E65100" stroke-width="1"/>
+            </svg>`,
+            // Other fruits...
+        ];
+
+        const fruitColors = [
+            '#FF5252',  // apple - red
+            '#FF9800',  // orange
+            '#FFD600',  // lemon - yellow
+            '#FFE082',  // banana - light yellow
+            '#D32F2F',  // cherries - dark red
+            '#E53935',  // strawberry - red
+            '#7B1FA2',  // grapes - purple
+            '#4CAF50',  // watermelon - green
+            '#C0CA33',  // pear - yellow-green
+            '#4A148C',  // plum - dark purple
+        ];
+
+        let gameState = {
+            snake: [...INITIAL_SNAKE],
+            foods: [],
+            direction: { ...INITIAL_DIRECTION },
+            gameOver: false,
+            score: 0,
+            isPaused: false
+        };
+
+        let directionQueue = [];
+        let lastRenderTime = 0;
+
+        function generateFoods() {
+            const foods = [];
+            const availablePositions = [];
+            const availableTypes = Array.from({ length: fruitColors.length }, (_, i) => i);
+            
+            // Create a list of all available positions
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    const isOccupiedBySnake = INITIAL_SNAKE.some(segment => 
+                        segment.x === x && segment.y === y
+                    );
+                    
+                    if (!isOccupiedBySnake) {
+                        availablePositions.push({ x, y });
+                    }
+                }
+            }
+            
+            // Shuffle available positions
+            for (let i = availablePositions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [availablePositions[i], availablePositions[j]] = 
+                [availablePositions[j], availablePositions[i]];
+            }
+
+            // Shuffle available types
+            for (let i = availableTypes.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [availableTypes[i], availableTypes[j]] = 
+                [availableTypes[j], availableTypes[i]];
+            }
+            
+            // Take first FOOD_COUNT positions and types
+            const foodCount = Math.min(FOOD_COUNT, Math.min(availablePositions.length, availableTypes.length));
+            for (let i = 0; i < foodCount; i++) {
+                foods.push({
+                    position: availablePositions[i],
+                    type: availableTypes[i]
+                });
+            }
+            
+            return foods;
+        }
+
+        function generateFood() {
+            const availablePositions = [];
+            const usedTypes = new Set(gameState.foods.map(food => food.type));
+            const availableTypes = Array.from({ length: fruitColors.length }, (_, i) => i)
+                .filter(type => !usedTypes.has(type));
+            
+            // If no unique types available, use any type
+            const type = availableTypes.length > 0 
+                ? availableTypes[Math.floor(Math.random() * availableTypes.length)]
+                : Math.floor(Math.random() * fruitColors.length);
+            
+            // Create a list of all available positions
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    const isOccupiedBySnake = gameState.snake.some(segment => 
+                        segment.x === x && segment.y === y
+                    );
+                    
+                    const isOccupiedByFood = gameState.foods.some(food => 
+                        food.position.x === x && food.position.y === y
+                    );
+                    
+                    if (!isOccupiedBySnake && !isOccupiedByFood) {
+                        availablePositions.push({ x, y });
+                    }
+                }
+            }
+            
+            // If no positions available, return null or handle game over
+            if (availablePositions.length === 0) {
+                return null;
+            }
+            
+            // Pick a random available position
+            const position = availablePositions[Math.floor(Math.random() * availablePositions.length)];
+            
+            return {
+                position,
+                type
+            };
+        }
+
+        function checkCollision(position) {
+            // Wall collision
+            if (position.x < 0 || position.x >= GRID_SIZE || position.y < 0 || position.y >= GRID_SIZE) {
+                return true;
+            }
+
+            // Self collision
+            for (let i = 1; i < gameState.snake.length; i++) {
+                const segment = gameState.snake[i];
+                if (position.x === segment.x && position.y === segment.y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function moveSnake() {
+            if (gameState.gameOver || gameState.isPaused) return;
+
+            const head = gameState.snake[0];
+            const newHead = {
+                x: head.x + gameState.direction.x,
+                y: head.y + gameState.direction.y
+            };
+
+            if (checkCollision(newHead)) {
+                gameState.gameOver = true;
+                document.getElementById('game-over').style.display = 'block';
+                document.getElementById('final-score').textContent = gameState.score;
+                return;
+            }
+
+            // Check for food collision
+            const foodIndex = gameState.foods.findIndex(food =>
+                food.position.x === newHead.x && food.position.y === newHead.y
+            );
+
+            if (foodIndex !== -1) {
+                const eatenFood = gameState.foods[foodIndex];
+                newHead.fruitType = eatenFood.type;
+                gameState.snake.unshift(newHead);
+                
+                // Generate new food ensuring it doesn't appear on snake
+                const newFood = generateFood();
+                if (newFood) {
+                    gameState.foods[foodIndex] = newFood;
+                }
+                
+                gameState.score += 1;
+                document.getElementById('score').textContent = `Score: ${gameState.score}`;
+            } else {
+                newHead.fruitType = gameState.snake[0].fruitType;
+                gameState.snake.unshift(newHead);
+                gameState.snake.pop();
+            }
+
+            // Process next direction from queue
+            if (directionQueue.length > 0) {
+                const nextDirection = directionQueue.shift();
+                if (!(nextDirection.x === -gameState.direction.x && nextDirection.y === -gameState.direction.y)) {
+                    gameState.direction = nextDirection;
+                }
+            }
+        }
+
+        function renderGame() {
+            const board = document.getElementById('game-board');
+            board.innerHTML = '';
+
+            // Render snake
+            gameState.snake.forEach((segment, index) => {
+                const segmentElement = document.createElement('div');
+                segmentElement.className = 'snake-segment';
+                segmentElement.style.left = `${segment.x * CELL_SIZE}px`;
+                segmentElement.style.top = `${segment.y * CELL_SIZE}px`;
+                
+                const color = segment.fruitType !== undefined ? fruitColors[segment.fruitType] : '#4CAF50';
+                segmentElement.style.backgroundColor = color;
+                
+                board.appendChild(segmentElement);
+            });
+
+            // Render food
+            gameState.foods.forEach((food, index) => {
+                const foodElement = document.createElement('div');
+                foodElement.className = 'food';
+                foodElement.style.left = `${food.position.x * CELL_SIZE}px`;
+                foodElement.style.top = `${food.position.y * CELL_SIZE}px`;
+                foodElement.innerHTML = fruitSvgs[food.type];
+                board.appendChild(foodElement);
+            });
+        }
+
+        function gameLoop(currentTime) {
+            if (lastRenderTime === 0) {
+                lastRenderTime = currentTime;
+            }
+
+            const elapsed = currentTime - lastRenderTime;
+
+            if (elapsed > GAME_SPEED) {
+                moveSnake();
+                renderGame();
+                lastRenderTime = currentTime;
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === ' ') {
+                gameState.isPaused = !gameState.isPaused;
+                return;
+            }
+
+            if (gameState.gameOver || gameState.isPaused) return;
+
+            let newDirection = null;
+            switch (event.key) {
+                case 'ArrowUp':
+                    if (gameState.direction.y !== 1) newDirection = { x: 0, y: -1 };
+                    break;
+                case 'ArrowDown':
+                    if (gameState.direction.y !== -1) newDirection = { x: 0, y: 1 };
+                    break;
+                case 'ArrowLeft':
+                    if (gameState.direction.x !== 1) newDirection = { x: -1, y: 0 };
+                    break;
+                case 'ArrowRight':
+                    if (gameState.direction.x !== -1) newDirection = { x: 1, y: 0 };
+                    break;
+            }
+
+            if (newDirection && directionQueue.length < 2) {
+                directionQueue.push(newDirection);
+            }
+        }
+
+        function resetGame() {
+            gameState = {
+                snake: [...INITIAL_SNAKE],
+                foods: generateFoods(),
+                direction: { ...INITIAL_DIRECTION },
+                gameOver: false,
+                score: 0,
+                isPaused: false
+            };
+            directionQueue = [];
+            document.getElementById('game-over').style.display = 'none';
+            document.getElementById('score').textContent = 'Score: 0';
+        }
+
+        // Initialize game
+        window.addEventListener('keydown', handleKeyPress);
+        resetGame();
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html> 
