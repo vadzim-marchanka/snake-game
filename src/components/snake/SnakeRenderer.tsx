@@ -113,6 +113,19 @@ const FruitSvgs = [
   </svg>
 ];
 
+const fruitColors = [
+  '#FF5252',  // apple - red
+  '#FF9800',  // orange
+  '#FFD600',  // lemon - yellow
+  '#FFE082',  // banana - light yellow
+  '#D32F2F',  // cherries - dark red
+  '#E53935',  // strawberry - red
+  '#7B1FA2',  // grapes - purple
+  '#4CAF50',  // watermelon - green
+  '#C0CA33',  // pear - yellow-green
+  '#4A148C',  // plum - dark purple
+];
+
 const SnakeSvg = {
   defs: (
     <defs>
@@ -164,9 +177,10 @@ const SnakeSvg = {
       </g>
     </svg>
   ),
-  body: (index: number) => {
-    const colors = ['#66BB6A', '#81C784', '#A5D6A7', '#C8E6C9'];
-    const color = colors[index % colors.length];
+  body: (segment: Position) => {
+    const defaultColors = ['#66BB6A', '#81C784', '#A5D6A7', '#C8E6C9'];
+    const color = segment.fruitType !== undefined ? fruitColors[segment.fruitType] : defaultColors[0];
+    
     return (
       <svg width="100%" height="100%" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect width="40" height="40" fill={color}/>
@@ -182,7 +196,7 @@ type SnakeRendererProps = {
 };
 
 export const SnakeRenderer = ({ gameState, onReset }: SnakeRendererProps) => {
-  const { snake, foods, gameOver, score, direction } = gameState;
+  const { snake, foods, gameOver, score, direction, isPaused } = gameState;
   
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
@@ -216,7 +230,7 @@ export const SnakeRenderer = ({ gameState, onReset }: SnakeRendererProps) => {
                 top: segment.y * CELL_SIZE,
               }}
             >
-              {isHead ? SnakeSvg.head(direction) : SnakeSvg.body(index)}
+              {isHead ? SnakeSvg.head(direction) : SnakeSvg.body(segment)}
             </div>
           );
         })}
@@ -235,6 +249,11 @@ export const SnakeRenderer = ({ gameState, onReset }: SnakeRendererProps) => {
             {FruitSvgs[food.type]}
           </div>
         ))}
+        {isPaused && !gameOver && (
+          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="text-4xl font-bold text-white font-[monospace]">PAUSED</div>
+          </div>
+        )}
       </div>
       {gameOver && (
         <div className="mt-8 text-center">

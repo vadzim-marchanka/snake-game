@@ -1,5 +1,5 @@
 import { SnakeActor } from '../SnakeActor';
-import { Direction } from '../events';
+import { Direction, Position, FoodItem } from '../events';
 
 describe('SnakeActor', () => {
   let snakeActor: SnakeActor;
@@ -15,6 +15,15 @@ describe('SnakeActor', () => {
       expect(state.score).toBe(0);
       expect(state.gameOver).toBe(false);
       expect(state.direction).toEqual({ x: 0, y: -1 });
+      expect(state.foods).toHaveLength(10);
+      state.foods.forEach(food => {
+        expect(food.position.x).toBeGreaterThanOrEqual(0);
+        expect(food.position.x).toBeLessThan(20);
+        expect(food.position.y).toBeGreaterThanOrEqual(0);
+        expect(food.position.y).toBeLessThan(20);
+        expect(food.type).toBeGreaterThanOrEqual(0);
+        expect(food.type).toBeLessThan(10);
+      });
     });
   });
 
@@ -92,7 +101,7 @@ describe('SnakeActor', () => {
       for (let i = 0; i < 4; i++) {
         snakeActor.handleEvent({ 
           type: 'FOOD_EATEN', 
-          position: { x: 15, y: 15 } 
+          foodItem: { position: { x: 15, y: 15 }, type: 0 }
         });
         snakeActor.handleEvent({ type: 'MOVE_REQUESTED' });
       }
@@ -123,12 +132,12 @@ describe('SnakeActor', () => {
     it('grows snake and increases score when eating food', () => {
       let state = snakeActor.getState();
       const initialLength = state.snake.length;
-      const foodPosition = state.food;
+      const targetFood = state.foods[0];
 
       // Move snake to food
-      while (state.snake[0].x !== foodPosition.x || state.snake[0].y !== foodPosition.y) {
-        const dx = Math.sign(foodPosition.x - state.snake[0].x);
-        const dy = Math.sign(foodPosition.y - state.snake[0].y);
+      while (state.snake[0].x !== targetFood.position.x || state.snake[0].y !== targetFood.position.y) {
+        const dx = Math.sign(targetFood.position.x - state.snake[0].x);
+        const dy = Math.sign(targetFood.position.y - state.snake[0].y);
         
         if (dx !== 0) {
           snakeActor.handleEvent({ 
@@ -153,14 +162,56 @@ describe('SnakeActor', () => {
       }
     });
 
+    it('preserves fruit colors based on positions', () => {
+      // Initial state: snake at (10,10) moving up
+      const state = snakeActor.getState();
+      
+      // Place a fruit and eat it
+      snakeActor.handleEvent({ 
+        type: 'FOOD_EATEN', 
+        foodItem: { position: { x: 10, y: 9 }, type: 0 }  // Apple at (10,9)
+      });
+      
+      // Move snake up to the fruit position
+      snakeActor.handleEvent({ type: 'MOVE_REQUESTED' });
+      
+      // Head should be yellow at (10,9), second segment at (10,10) should be green
+      let currentState = snakeActor.getState();
+      expect(currentState.snake[0].fruitType).toBe(0);  // Head is yellow
+      expect(currentState.snake[1].fruitType).toBeUndefined();  // Second segment still green
+      
+      // Move again
+      snakeActor.handleEvent({ type: 'MOVE_REQUESTED' });
+      
+      // Head should be green at (10,8), second segment at (10,9) should be yellow
+      currentState = snakeActor.getState();
+      expect(currentState.snake[0].fruitType).toBeUndefined();  // Head back to green
+      expect(currentState.snake[1].fruitType).toBe(0);  // Second segment now yellow
+      
+      // Place another fruit and eat it
+      snakeActor.handleEvent({ 
+        type: 'FOOD_EATEN', 
+        foodItem: { position: { x: 10, y: 8 }, type: 1 }  // Orange at current head position
+      });
+      
+      // Move snake
+      snakeActor.handleEvent({ type: 'MOVE_REQUESTED' });
+      
+      // Verify colors
+      currentState = snakeActor.getState();
+      expect(currentState.snake[0].fruitType).toBe(1);  // Head is orange
+      expect(currentState.snake[1].fruitType).toBeUndefined();  // Second segment green
+      expect(currentState.snake[2].fruitType).toBe(0);  // Third segment still yellow
+    });
+
     it('generates new food in valid position after eating', () => {
       let state = snakeActor.getState();
-      const initialFood = state.food;
+      const initialFood = state.foods[0];
 
       // Move snake to food
-      while (state.snake[0].x !== initialFood.x || state.snake[0].y !== initialFood.y) {
-        const dx = Math.sign(initialFood.x - state.snake[0].x);
-        const dy = Math.sign(initialFood.y - state.snake[0].y);
+      while (state.snake[0].x !== initialFood.position.x || state.snake[0].y !== initialFood.position.y) {
+        const dx = Math.sign(initialFood.position.x - state.snake[0].x);
+        const dy = Math.sign(initialFood.position.y - state.snake[0].y);
         
         if (dx !== 0) {
           snakeActor.handleEvent({ 
@@ -178,11 +229,14 @@ describe('SnakeActor', () => {
         state = snakeActor.getState();
       }
 
-      expect(state.food).not.toEqual(initialFood);
-      expect(state.food.x).toBeGreaterThanOrEqual(0);
-      expect(state.food.x).toBeLessThan(20);
-      expect(state.food.y).toBeGreaterThanOrEqual(0);
-      expect(state.food.y).toBeLessThan(20);
+      const newFood = state.foods[0];
+      expect(newFood).not.toEqual(initialFood);
+      expect(newFood.position.x).toBeGreaterThanOrEqual(0);
+      expect(newFood.position.x).toBeLessThan(20);
+      expect(newFood.position.y).toBeGreaterThanOrEqual(0);
+      expect(newFood.position.y).toBeLessThan(20);
+      expect(newFood.type).toBeGreaterThanOrEqual(0);
+      expect(newFood.type).toBeLessThan(10);
     });
 
     it('grows snake when receiving food eaten event', () => {
@@ -190,12 +244,69 @@ describe('SnakeActor', () => {
       
       snakeActor.handleEvent({ 
         type: 'FOOD_EATEN', 
-        position: { x: 15, y: 15 } 
+        foodItem: { position: { x: 15, y: 15 }, type: 0 }
       });
       snakeActor.handleEvent({ type: 'MOVE_REQUESTED' });
 
       const newLength = snakeActor.getState().snake.length;
       expect(newLength).toBe(initialLength + 1);
+    });
+
+    it('propagates fruit colors through snake segments one at a time', () => {
+      // Create a longer snake first
+      for (let i = 0; i < 3; i++) {
+        snakeActor.handleEvent({ 
+          type: 'FOOD_EATEN', 
+          foodItem: { position: { x: 15, y: 15 }, type: 0 }
+        });
+        snakeActor.handleEvent({ type: 'MOVE_REQUESTED' });
+      }
+
+      // Now we have a 5-segment snake
+      let state = snakeActor.getState();
+      expect(state.snake.length).toBe(5);
+
+      // Place a yellow fruit (type 0) at the next position
+      const headPos = state.snake[0];
+      const fruitPos = { x: headPos.x, y: headPos.y - 1 }; // One position ahead
+      snakeActor.handleEvent({ 
+        type: 'FOOD_EATEN', 
+        foodItem: { position: fruitPos, type: 0 } 
+      });
+      state = snakeActor.getState();  // Refresh state after FOOD_EATEN event
+
+      // Initial state: [G,G,G,G,G] (all segments should have default undefined color)
+      expect(state.snake.map(s => s.fruitType)).toEqual([undefined, undefined, undefined, undefined, undefined]);
+
+      // Move 1: [Y,G,G,G,G]
+      snakeActor.handleEvent({ type: 'MOVE_REQUESTED' });
+      state = snakeActor.getState();
+      expect(state.snake.map(s => s.fruitType))
+        .toEqual([0, undefined, undefined, undefined, undefined]);
+
+      // Move 2: [Y,Y,G,G,G]
+      snakeActor.handleEvent({ type: 'MOVE_REQUESTED' });
+      state = snakeActor.getState();
+      expect(state.snake.map(s => s.fruitType))
+        .toEqual([0, 0, undefined, undefined, undefined]);
+
+      // Move 3: [Y,Y,Y,G,G]
+      snakeActor.handleEvent({ type: 'MOVE_REQUESTED' });
+      state = snakeActor.getState();
+      expect(state.snake.map(s => s.fruitType))
+        .toEqual([0, 0, 0, undefined, undefined]);
+
+      // Move 4: [Y,Y,Y,Y,G]
+      snakeActor.handleEvent({ type: 'MOVE_REQUESTED' });
+      state = snakeActor.getState();
+      expect(state.snake.map(s => s.fruitType))
+        .toEqual([0, 0, 0, 0, undefined]);
+
+      // Move 5: [Y,Y,Y,Y,Y]
+      snakeActor.handleEvent({ type: 'MOVE_REQUESTED' });
+      state = snakeActor.getState();
+      expect(state.snake.map(s => s.fruitType))
+        .toEqual([0, 0, 0, 0, 0]);
     });
   });
 
@@ -216,6 +327,7 @@ describe('SnakeActor', () => {
       expect(newState.score).toBe(0);
       expect(newState.snake).toHaveLength(2);
       expect(newState.direction).toEqual({ x: 0, y: -1 });
+      expect(newState.foods).toHaveLength(10);
     });
 
     it('allows movement after reset', () => {
@@ -231,6 +343,61 @@ describe('SnakeActor', () => {
       const newHead = snakeActor.getState().snake[0];
 
       expect(newHead).not.toEqual(initialHead);
+    });
+  });
+
+  describe('pause functionality', () => {
+    it('starts in unpaused state', () => {
+      expect(snakeActor.getState().isPaused).toBe(false);
+    });
+
+    it('toggles pause state when TOGGLE_PAUSE event is received', () => {
+      snakeActor.handleEvent({ type: 'TOGGLE_PAUSE' });
+      expect(snakeActor.getState().isPaused).toBe(true);
+
+      snakeActor.handleEvent({ type: 'TOGGLE_PAUSE' });
+      expect(snakeActor.getState().isPaused).toBe(false);
+    });
+
+    it('does not move snake when paused', () => {
+      const initialHead = snakeActor.getState().snake[0];
+      
+      snakeActor.handleEvent({ type: 'TOGGLE_PAUSE' });
+      snakeActor.handleEvent({ type: 'MOVE_REQUESTED' });
+      
+      expect(snakeActor.getState().snake[0]).toEqual(initialHead);
+    });
+
+    it('does not change direction when paused', () => {
+      const initialDirection = snakeActor.getState().direction;
+      
+      snakeActor.handleEvent({ type: 'TOGGLE_PAUSE' });
+      snakeActor.handleEvent({ 
+        type: 'DIRECTION_CHANGED', 
+        direction: { x: 1, y: 0 } 
+      });
+      
+      expect(snakeActor.getState().direction).toEqual(initialDirection);
+    });
+
+    it('cannot toggle pause when game is over', () => {
+      // Cause game over by moving into wall
+      for (let i = 0; i < 11; i++) {
+        snakeActor.handleEvent({ type: 'MOVE_REQUESTED' });
+      }
+      
+      expect(snakeActor.getState().gameOver).toBe(true);
+      
+      snakeActor.handleEvent({ type: 'TOGGLE_PAUSE' });
+      expect(snakeActor.getState().isPaused).toBe(false);
+    });
+
+    it('resets pause state when game is reset', () => {
+      snakeActor.handleEvent({ type: 'TOGGLE_PAUSE' });
+      expect(snakeActor.getState().isPaused).toBe(true);
+      
+      snakeActor.handleEvent({ type: 'GAME_RESET' });
+      expect(snakeActor.getState().isPaused).toBe(false);
     });
   });
 }); 

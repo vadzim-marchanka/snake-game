@@ -1,6 +1,13 @@
 export type Position = {
   x: number;
   y: number;
+  fruitType?: number;  // Track which fruit was eaten at this position
+};
+
+export type ColorPosition = {
+  x: number;
+  y: number;
+  type: number;
 };
 
 export type Direction = {
@@ -18,7 +25,8 @@ export type GameEvent =
   | { type: 'MOVE_REQUESTED' }
   | { type: 'FOOD_EATEN'; foodItem: FoodItem }
   | { type: 'SNAKE_COLLIDED' }
-  | { type: 'GAME_RESET' };
+  | { type: 'GAME_RESET' }
+  | { type: 'TOGGLE_PAUSE' };
 
 export type GameState = {
   snake: Position[];
@@ -26,4 +34,6 @@ export type GameState = {
   direction: Direction;
   gameOver: boolean;
   score: number;
-}; 
+  isPaused: boolean;
+  colorPositions: ColorPosition[];  // Track positions where fruits were eaten
+};

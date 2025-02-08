@@ -24,6 +24,11 @@ export const Game = () => {
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === ' ') { // Space key
+        processEvent({ type: 'TOGGLE_PAUSE' });
+        return;
+      }
+
       let newDirection: Direction | null = null;
 
       switch (e.key) {

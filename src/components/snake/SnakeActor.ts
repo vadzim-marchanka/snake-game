@@ -12,6 +12,8 @@ export class SnakeActor {
   private state: GameState;
   private listeners: ((state: GameState) => void)[] = [];
   private shouldGrow: boolean = false;
+  private pendingFruitType: number | undefined = undefined;
+  private pendingFoodPosition: { x: number; y: number } | undefined = undefined;
 
   constructor() {
     this.state = {
@@ -20,6 +22,8 @@ export class SnakeActor {
       direction: INITIAL_DIRECTION,
       gameOver: false,
       score: 0,
+      isPaused: false,
+      colorPositions: [],
     };
   }
 
@@ -89,7 +93,7 @@ export class SnakeActor {
 
     switch (event.type) {
       case 'DIRECTION_CHANGED': {
-        if (this.state.gameOver) {
+        if (this.state.gameOver || this.state.isPaused) {
           break;
         }
 
@@ -107,12 +111,12 @@ export class SnakeActor {
       }
 
       case 'MOVE_REQUESTED': {
-        if (this.state.gameOver) {
+        if (this.state.gameOver || this.state.isPaused) {
           break;
         }
 
         const head = this.state.snake[0];
-        const newHead = {
+        const newHead: Position = {
           x: head.x + this.state.direction.x,
           y: head.y + this.state.direction.y,
         };
@@ -125,18 +129,22 @@ export class SnakeActor {
           break;
         }
 
-        const newSnake = [newHead, ...this.state.snake];
-
-        // Check if snake ate any food
+        // Determine movement behavior
         const eatenFoodIndex = this.state.foods.findIndex(food => 
           food.position.x === newHead.x && food.position.y === newHead.y
         );
 
+        let newSnake: Position[];
+
         if (eatenFoodIndex !== -1) {
+          // Natural food collision: grow snake and assign food color immediately
           const eatenFood = this.state.foods[eatenFoodIndex];
           const newFoods = [...this.state.foods];
-          newFoods[eatenFoodIndex] = this.generateFood(); // Replace eaten food with new one
-          
+          newFoods[eatenFoodIndex] = this.generateFood();
+
+          newHead.fruitType = eatenFood.type;
+          newSnake = [ newHead, ...this.state.snake ];
+
           this.state = {
             ...this.state,
             snake: newSnake,
@@ -144,34 +152,60 @@ export class SnakeActor {
             score: this.state.score + 1,
           };
           resultEvents.push({ type: 'FOOD_EATEN', foodItem: eatenFood });
+        } else if (this.pendingFoodPosition && newHead.x === this.pendingFoodPosition.x && newHead.y === this.pendingFoodPosition.y) {
+          // Propagation move: snake goes through the food cell so propagate the color without growing
+          newHead.fruitType = this.pendingFruitType;
+          newSnake = [ newHead, ...this.state.snake.slice(0, this.state.snake.length - 1) ];
+          this.state = { ...this.state, snake: newSnake };
+          // Clear pending so subsequent moves propagate the color naturally
+          this.pendingFruitType = undefined;
+          this.pendingFoodPosition = undefined;
+        } else if (this.pendingFruitType !== undefined) {
+          // Growth move: apply pending food color to new head and grow snake
+          newHead.fruitType = this.pendingFruitType;
+          newSnake = [ newHead, ...this.state.snake ];
+          this.state = { ...this.state, snake: newSnake };
+          this.pendingFruitType = undefined;
+          this.pendingFoodPosition = undefined;
         } else {
-          if (!this.shouldGrow) {
-            newSnake.pop();
-          }
-          this.state = {
-            ...this.state,
-            snake: newSnake,
-          };
-          this.shouldGrow = false;
+          // Normal move: shift snake and propagate existing head color
+          newHead.fruitType = this.state.snake.length === 2 ? undefined : this.state.snake[0].fruitType;
+          newSnake = [ newHead, ...this.state.snake.slice(0, this.state.snake.length - 1) ];
+          this.state = { ...this.state, snake: newSnake };
         }
+
         this.notify();
         break;
       }
 
       case 'FOOD_EATEN': {
-        // Mark that the snake should grow on next move
-        this.shouldGrow = true;
+        // Instead of immediate growth, store pending food data for color propagation
+        this.pendingFruitType = event.foodItem.type;
+        this.pendingFoodPosition = event.foodItem.position;
         this.notify();
+        break;
+      }
+
+      case 'TOGGLE_PAUSE': {
+        if (!this.state.gameOver) {
+          this.state = {
+            ...this.state,
+            isPaused: !this.state.isPaused
+          };
+          this.notify();
+        }
         break;
       }
 
       case 'GAME_RESET': {
         this.state = {
-          snake: INITIAL_SNAKE,
+          snake: INITIAL_SNAKE.map(pos => ({ ...pos })),
           foods: this.generateFoods(),
           direction: INITIAL_DIRECTION,
           gameOver: false,
           score: 0,
+          isPaused: false,
+          colorPositions: [],
         };
         this.shouldGrow = false;
         this.notify();
