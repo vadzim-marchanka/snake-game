@@ -1,4 +1,4 @@
-import { Direction, GameEvent, GameState, Position } from './events';
+import { Direction, GameEvent, GameState, Position, FoodItem } from './events';
 
 const GRID_SIZE = 20;
 const INITIAL_SNAKE = [
@@ -6,6 +6,7 @@ const INITIAL_SNAKE = [
   { x: 10, y: 11 },
 ];
 const INITIAL_DIRECTION = { x: 0, y: -1 };
+const FOOD_COUNT = 10;
 
 export class SnakeActor {
   private state: GameState;
@@ -15,7 +16,7 @@ export class SnakeActor {
   constructor() {
     this.state = {
       snake: INITIAL_SNAKE,
-      food: { x: 5, y: 5 },
+      foods: this.generateFoods(),
       direction: INITIAL_DIRECTION,
       gameOver: false,
       score: 0,
@@ -34,11 +35,32 @@ export class SnakeActor {
     this.listeners.forEach(listener => listener(this.state));
   }
 
-  private generateFood(): Position {
+  private generateFood(): FoodItem {
     return {
-      x: Math.floor(Math.random() * GRID_SIZE),
-      y: Math.floor(Math.random() * GRID_SIZE),
+      position: {
+        x: Math.floor(Math.random() * GRID_SIZE),
+        y: Math.floor(Math.random() * GRID_SIZE),
+      },
+      type: Math.floor(Math.random() * 10)
     };
+  }
+
+  private generateFoods(): FoodItem[] {
+    const foods: FoodItem[] = [];
+    while (foods.length < FOOD_COUNT) {
+      const newFood = this.generateFood();
+      // Check if the position is already occupied by snake or other food
+      const isOccupied = foods.some(food => 
+        food.position.x === newFood.position.x && food.position.y === newFood.position.y
+      ) || this.state?.snake.some(segment => 
+        segment.x === newFood.position.x && segment.y === newFood.position.y
+      );
+      
+      if (!isOccupied) {
+        foods.push(newFood);
+      }
+    }
+    return foods;
   }
 
   private checkCollision(head: Position): boolean {
@@ -105,15 +127,23 @@ export class SnakeActor {
 
         const newSnake = [newHead, ...this.state.snake];
 
-        if (newHead.x === this.state.food.x && newHead.y === this.state.food.y) {
-          const newFood = this.generateFood();
+        // Check if snake ate any food
+        const eatenFoodIndex = this.state.foods.findIndex(food => 
+          food.position.x === newHead.x && food.position.y === newHead.y
+        );
+
+        if (eatenFoodIndex !== -1) {
+          const eatenFood = this.state.foods[eatenFoodIndex];
+          const newFoods = [...this.state.foods];
+          newFoods[eatenFoodIndex] = this.generateFood(); // Replace eaten food with new one
+          
           this.state = {
             ...this.state,
             snake: newSnake,
-            food: newFood,
+            foods: newFoods,
             score: this.state.score + 1,
           };
-          resultEvents.push({ type: 'FOOD_EATEN', position: newFood });
+          resultEvents.push({ type: 'FOOD_EATEN', foodItem: eatenFood });
         } else {
           if (!this.shouldGrow) {
             newSnake.pop();
@@ -131,11 +161,6 @@ export class SnakeActor {
       case 'FOOD_EATEN': {
         // Mark that the snake should grow on next move
         this.shouldGrow = true;
-        this.state = {
-          ...this.state,
-          food: event.position,
-          score: this.state.score + 1,
-        };
         this.notify();
         break;
       }
@@ -143,7 +168,7 @@ export class SnakeActor {
       case 'GAME_RESET': {
         this.state = {
           snake: INITIAL_SNAKE,
-          food: this.generateFood(),
+          foods: this.generateFoods(),
           direction: INITIAL_DIRECTION,
           gameOver: false,
           score: 0,

@@ -8,16 +8,21 @@ export type Direction = {
   y: number;
 };
 
+export type FoodItem = {
+  position: Position;
+  type: number;
+};
+
 export type GameEvent =
   | { type: 'DIRECTION_CHANGED'; direction: Direction }
   | { type: 'MOVE_REQUESTED' }
-  | { type: 'FOOD_EATEN'; position: Position }
+  | { type: 'FOOD_EATEN'; foodItem: FoodItem }
   | { type: 'SNAKE_COLLIDED' }
   | { type: 'GAME_RESET' };
 
 export type GameState = {
   snake: Position[];
-  food: Position;
+  foods: FoodItem[];
   direction: Direction;
   gameOver: boolean;
   score: number;
