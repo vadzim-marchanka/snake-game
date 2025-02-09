@@ -5,8 +5,11 @@ import { Direction, GameState, GameEvent } from './events';
 
 const GAME_SPEED = 150;
 
+// Create a single instance of GameActor outside the component
+const gameActorInstance = new GameActor();
+
 export const Game = () => {
-  const gameActorRef = useRef(new GameActor());
+  const gameActorRef = useRef(gameActorInstance);
   const [gameState, setGameState] = useState<GameState>(gameActorRef.current.getState());
   const [eventHistory, setEventHistory] = useState<GameEvent[]>([]);
   const directionChangedSinceMove = useRef(false);
@@ -18,7 +21,6 @@ export const Game = () => {
   };
 
   useEffect(() => {
-    console.log('Game component mounted');
     const unsubscribe = gameActorRef.current.subscribe(setGameState);
     return () => unsubscribe();
   }, []);
@@ -60,7 +62,6 @@ export const Game = () => {
   }, [gameState.direction]);
 
   useEffect(() => {
-    console.log('Setting up game interval');
     const gameInterval = setInterval(() => {
       processEvent({ type: 'MOVE_REQUESTED' });
       directionChangedSinceMove.current = false;
@@ -72,8 +73,6 @@ export const Game = () => {
   const handleReset = () => {
     gameActorRef.current.handleEvent({ type: 'GAME_RESET' });
   };
-
-  console.log('Game component rendering with state:', gameState);
 
   return <GameRenderer gameState={gameState} onReset={handleReset} />;
 }; 

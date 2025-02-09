@@ -11,34 +11,17 @@ type GameRendererProps = {
   onReset: () => void;
 };
 
-export const GameRenderer = ({ gameState, onReset }: GameRendererProps) => {
+export const GameRenderer: React.FC<GameRendererProps> = ({ gameState, onReset }) => {
   useEffect(() => {
-    console.log('GameRenderer mounted');
-    return () => console.log('GameRenderer unmounted');
+    // Component lifecycle
   }, []);
 
-  console.log('GameRenderer rendering with props:', { gameState, onReset });
-
   if (!gameState) {
-    console.error('GameState is undefined');
-    return <div className="text-white">Error: Game state is undefined</div>;
+    return null;
   }
 
   const { snake, foods, gameOver, score, direction, isPaused } = gameState;
 
-  // Detailed debug logs
-  console.log('Destructured GameState:', {
-    snake: snake ? `${snake.length} segments` : 'undefined',
-    foods: foods ? `${foods.length} foods` : 'undefined',
-    direction: direction ? `x:${direction.x}, y:${direction.y}` : 'undefined',
-    gameOver,
-    score,
-    isPaused
-  });
-
-  console.log('Snake data:', snake);
-  console.log('Food data:', foods);
-  
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
       <div className="bg-gray-800 shadow-lg rounded-lg px-8 py-4 mb-8">

@@ -24,22 +24,6 @@ const fruitColors = [
 ];
 
 const SnakeSvg = {
-  defs: (
-    <defs>
-      <pattern id="scales" width="10" height="10" patternUnits="userSpaceOnUse">
-        <path d="M 0 5 Q 5 0, 10 5 Q 5 10, 0 5" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeOpacity="0.3"
-              strokeWidth="1"/>
-      </pattern>
-      <filter id="texture">
-        <feTurbulence type="turbulence" baseFrequency="0.7" numOctaves="2" result="noise"/>
-        <feComposite in="SourceGraphic" in2="noise" operator="arithmetic" k1="0" k2="0.1" k3="0.1" k4="0"/>
-      </filter>
-    </defs>
-  ),
-
   head: (direction: Direction, segment: Position) => {
     const defaultColor = '#4CAF50';
     const color = segment.fruitType !== undefined ? fruitColors[segment.fruitType] : defaultColor;
@@ -146,7 +130,6 @@ export const SnakeRenderer = ({ snake, direction }: SnakeRendererProps) => {
 
   return (
     <>
-      {SnakeSvg.defs}
       {snake.map((segment, index) => {
         const isHead = index === 0;
         return (

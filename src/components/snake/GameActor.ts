@@ -67,7 +67,7 @@ export class GameActor {
           
           if (eatenFood) {
             // Food collision: emit event, update food, and move snake
-            this.foodActor.replaceFoodAtPosition(eatenFood.position);
+            this.foodActor.replaceFoodAtPosition(eatenFood.position, snakeState.snake);
             this.state = {
               ...this.state,
               foods: this.foodActor.getFoods(),
@@ -100,8 +100,9 @@ export class GameActor {
       }
 
       case 'GAME_RESET': {
-        this.foodActor.reset();
         this.snakeActor.reset();
+        const newSnakeState = this.snakeActor.getState();
+        this.foodActor.reset(newSnakeState.snake);
         this.state = {
           ...this.state,
           foods: this.foodActor.getFoods(),
