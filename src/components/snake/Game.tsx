@@ -1,24 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
-import { SnakeActor } from './SnakeActor';
-import { SnakeRenderer } from './SnakeRenderer';
+import { GameActor } from './GameActor';
+import { GameRenderer } from './GameRenderer';
 import { Direction, GameState, GameEvent } from './events';
 
 const GAME_SPEED = 150;
 
 export const Game = () => {
-  const snakeActorRef = useRef(new SnakeActor());
-  const [gameState, setGameState] = useState<GameState>(snakeActorRef.current.getState());
+  const gameActorRef = useRef(new GameActor());
+  const [gameState, setGameState] = useState<GameState>(gameActorRef.current.getState());
   const [eventHistory, setEventHistory] = useState<GameEvent[]>([]);
   const directionChangedSinceMove = useRef(false);
 
   const processEvent = (event: GameEvent): GameEvent[] => {
-    const resultEvents = snakeActorRef.current.handleEvent(event);
+    const resultEvents = gameActorRef.current.handleEvent(event);
     setEventHistory(prev => [...prev, event, ...resultEvents]);
     return resultEvents;
   };
 
   useEffect(() => {
-    const unsubscribe = snakeActorRef.current.subscribe(setGameState);
+    console.log('Game component mounted');
+    const unsubscribe = gameActorRef.current.subscribe(setGameState);
     return () => unsubscribe();
   }, []);
 
@@ -59,6 +60,7 @@ export const Game = () => {
   }, [gameState.direction]);
 
   useEffect(() => {
+    console.log('Setting up game interval');
     const gameInterval = setInterval(() => {
       processEvent({ type: 'MOVE_REQUESTED' });
       directionChangedSinceMove.current = false;
@@ -68,8 +70,10 @@ export const Game = () => {
   }, []);
 
   const handleReset = () => {
-    snakeActorRef.current.handleEvent({ type: 'GAME_RESET' });
+    gameActorRef.current.handleEvent({ type: 'GAME_RESET' });
   };
 
-  return <SnakeRenderer gameState={gameState} onReset={handleReset} />;
+  console.log('Game component rendering with state:', gameState);
+
+  return <GameRenderer gameState={gameState} onReset={handleReset} />;
 }; 
