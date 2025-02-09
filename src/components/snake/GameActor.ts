@@ -10,10 +10,13 @@ export class GameActor {
   private foodActor: FoodActor;
   private collisionDetector: CollisionDetectionActor;
 
-  constructor() {
+  constructor(
+    collisionDetector?: CollisionDetectionActor,
+    foodActor?: FoodActor
+  ) {
     this.snakeActor = new SnakeActor();
-    this.foodActor = new FoodActor();
-    this.collisionDetector = new CollisionDetectionActor();
+    this.foodActor = foodActor || new FoodActor();
+    this.collisionDetector = collisionDetector || new CollisionDetectionActor();
     const snakeState = this.snakeActor.getState();
     this.state = {
       snake: snakeState.snake,

@@ -108,4 +108,129 @@ describe('SnakeActor', () => {
       expect(state.snake[0].fruitType).toBe(fruitType);
     });
   });
+
+  describe('snake growth mechanics', () => {
+    it('should maintain fruit type chain when growing', () => {
+      const fruitTypes = [1, 2, 3];
+      fruitTypes.forEach(type => {
+        snakeActor.foodEaten(type);
+        snakeActor.moveSnake();
+      });
+
+      const state = snakeActor.getState();
+      expect(state.snake[0].fruitType).toBe(fruitTypes[fruitTypes.length - 1]);
+      expect(state.snake[1].fruitType).toBe(fruitTypes[fruitTypes.length - 2]);
+      expect(state.snake[2].fruitType).toBe(fruitTypes[fruitTypes.length - 3]);
+    });
+
+    it('should handle multiple fruit types in sequence', () => {
+      // First growth
+      snakeActor.foodEaten(1);
+      snakeActor.moveSnake();
+      let state = snakeActor.getState();
+      expect(state.snake.length).toBe(3);
+      expect(state.snake[0].fruitType).toBe(1);
+
+      // Second growth
+      snakeActor.foodEaten(2);
+      snakeActor.moveSnake();
+      state = snakeActor.getState();
+      expect(state.snake.length).toBe(4);
+      expect(state.snake[0].fruitType).toBe(2);
+      expect(state.snake[1].fruitType).toBe(1);
+    });
+
+    it('should maintain fruit types during normal movement', () => {
+      // First add some fruit types
+      snakeActor.foodEaten(1);
+      snakeActor.moveSnake();
+      snakeActor.foodEaten(2);
+      snakeActor.moveSnake();
+
+      // Then move without eating
+      const beforeMove = snakeActor.getState();
+      snakeActor.moveSnake();
+      const afterMove = snakeActor.getState();
+
+      expect(afterMove.snake.length).toBe(beforeMove.snake.length);
+      expect(afterMove.snake[0].fruitType).toBe(beforeMove.snake[0].fruitType);
+      expect(afterMove.snake[1].fruitType).toBe(beforeMove.snake[0].fruitType);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle rapid direction changes', () => {
+      const directions: Direction[] = [
+        { x: 1, y: 0 },  // RIGHT
+        { x: 0, y: -1 }, // UP
+        { x: 1, y: 0 },  // RIGHT
+        { x: 0, y: 1 },  // DOWN
+      ];
+
+      directions.forEach(direction => {
+        snakeActor.changeDirection(direction);
+        snakeActor.moveSnake();
+      });
+
+      const state = snakeActor.getState();
+      expect(state.snake.length).toBe(2); // Original length
+      expect(state.direction).toEqual(directions[directions.length - 1]);
+    });
+
+    it('should handle movement after game over', () => {
+      snakeActor.snakeCollided();
+      const beforeMove = snakeActor.getState();
+      snakeActor.moveSnake();
+      const afterMove = snakeActor.getState();
+
+      expect(afterMove.snake).toEqual(beforeMove.snake);
+      expect(afterMove.gameOver).toBe(true);
+    });
+
+    it('should handle direction change after game over', () => {
+      snakeActor.snakeCollided();
+      const beforeDirection = snakeActor.getState().direction;
+      snakeActor.changeDirection({ x: 1, y: 0 });
+      const afterDirection = snakeActor.getState().direction;
+
+      expect(afterDirection).toEqual(beforeDirection);
+    });
+  });
+
+  describe('state management', () => {
+    it('should properly reset all internal state', () => {
+      // First modify the state
+      snakeActor.foodEaten(1);
+      snakeActor.moveSnake();
+      snakeActor.foodEaten(2);
+      snakeActor.moveSnake();
+      snakeActor.snakeCollided();
+
+      // Then reset
+      snakeActor.reset();
+      const state = snakeActor.getState();
+
+      expect(state.snake).toHaveLength(2);
+      expect(state.direction).toEqual({ x: 0, y: -1 });
+      expect(state.gameOver).toBe(false);
+      expect(state.snake[0].fruitType).toBeUndefined();
+    });
+
+    it('should maintain state consistency during pause', () => {
+      // Set up initial state with some fruit types
+      snakeActor.foodEaten(1);
+      snakeActor.moveSnake();
+      
+      const beforePause = snakeActor.getState();
+      snakeActor.getState().isPaused = true;
+      
+      // Try to move and change direction while paused
+      snakeActor.moveSnake();
+      snakeActor.changeDirection({ x: 1, y: 0 });
+      
+      const afterPause = snakeActor.getState();
+      expect(afterPause.snake).toEqual(beforePause.snake);
+      expect(afterPause.direction).toEqual(beforePause.direction);
+    });
+  });
 }); 
