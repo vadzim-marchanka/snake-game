@@ -3,12 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:watch-coverage": "jest --coverage --watchAll",
+    "test:snake": "jest src/components/__tests__/.*Snake.*.test.ts"
   },
   "dependencies": {
     "next": "15.1.6",
@@ -16,8 +19,8 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.26.7",
-    "@babel/preset-env": "^7.26.7",
+    "@babel/core": "^7.26.8",
+    "@babel/preset-env": "^7.26.8",
     "@babel/preset-react": "^7.26.3",
     "@babel/preset-typescript": "^7.26.0",
     "@eslint/eslintrc": "^3",
@@ -29,13 +32,16 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "babel-jest": "^29.7.0",
+    "babel-loader": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "15.1.6",
+    "identity-obj-proxy": "^3.0.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "postcss": "^8",
     "source-map-support": "^0.5.21",
     "tailwindcss": "^3.4.1",
+    "ts-jest": "^29.2.5",
     "typescript": "^5"
   }
 }
