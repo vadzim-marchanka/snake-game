@@ -1,10 +1,9 @@
 import { GameActor } from '../snake/GameActor';
-import { Direction, GameEvent, GameState, FoodItem } from '../snake/events';
+import { Direction, GameEvent, FoodItem } from '../snake/events';
 import { CollisionDetectionActor } from '../snake/CollisionDetectionActor';
 import { FoodActor } from '../snake/FoodActor';
 
 const GRID_SIZE = 20;
-const fail = (message: string) => { throw new Error(message); };
 
 describe('GameActor', () => {
   let gameActor: GameActor;
@@ -23,11 +22,16 @@ describe('GameActor', () => {
     
     // Mock food actor methods
     jest.spyOn(mockFoodActor, 'getFoods').mockReturnValue(initialFoods);
-    jest.spyOn(mockFoodActor, 'replaceFoodAtPosition').mockImplementation(() => {
-      initialFoods[0] = { 
-        position: { x: 15, y: 15 }, 
-        type: 3 
-      };
+    jest.spyOn(mockFoodActor, 'replaceFoodAtPosition').mockImplementation((position) => {
+      const foodIndex = initialFoods.findIndex(food => 
+        food.position.x === position.x && food.position.y === position.y
+      );
+      if (foodIndex !== -1) {
+        initialFoods[foodIndex] = { 
+          position: { x: 15, y: 15 }, 
+          type: 3 
+        };
+      }
     });
     
     gameActor = new GameActor(mockCollisionDetector, mockFoodActor);
@@ -47,7 +51,6 @@ describe('GameActor', () => {
 
   describe('event handling', () => {
     it('should handle DIRECTION_CHANGED event', () => {
-      const initialState = gameActor.getState();
       const event: GameEvent = {
         type: 'DIRECTION_CHANGED',
         direction: { x: 1, y: 0 } // RIGHT direction as an object
@@ -87,12 +90,12 @@ describe('GameActor', () => {
     });
 
     it('should not move snake when game is paused', () => {
-      const initialState = gameActor.getState();
+      const initialSnake = gameActor.getState().snake;
       gameActor.handleEvent({ type: 'TOGGLE_PAUSE' });
       gameActor.handleEvent({ type: 'MOVE_REQUESTED' });
       
       const newState = gameActor.getState();
-      expect(newState.snake).toEqual(initialState.snake);
+      expect(newState.snake).toEqual(initialSnake);
     });
   });
 
@@ -132,7 +135,7 @@ describe('GameActor', () => {
 
       const newState = gameActor.getState();
       expect(newState.score).toBe(initialScore + 1);
-      expect(mockFoodActor.replaceFoodAtPosition).toHaveBeenCalledWith(mockFood.position);
+      expect(mockFoodActor.replaceFoodAtPosition).toHaveBeenCalledWith(mockFood.position, initialState.snake);
       
       // Verify that the first food item was replaced
       expect(newState.foods[0]).toEqual({ position: { x: 15, y: 15 }, type: 3 });

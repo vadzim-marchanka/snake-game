@@ -1,4 +1,4 @@
-import { GameEvent, GameState, Position } from './events';
+import { GameEvent, GameState } from './events';
 import { SnakeActor } from './SnakeActor';
 import { FoodActor } from './FoodActor';
 import { CollisionDetectionActor } from './CollisionDetectionActor';

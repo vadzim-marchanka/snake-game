@@ -2,8 +2,8 @@ import { Direction, GameState, Position } from './events';
 
 const GRID_SIZE = 20;
 const INITIAL_SNAKE = [
-  { x: 10, y: 10 },
-  { x: 10, y: 11 },
+  { x: GRID_SIZE / 2, y: GRID_SIZE / 2 },
+  { x: GRID_SIZE / 2, y: (GRID_SIZE / 2) + 1 },
 ];
 const INITIAL_DIRECTION = { x: 0, y: -1 };
 

@@ -11,12 +11,10 @@ const gameActorInstance = new GameActor();
 export const Game = () => {
   const gameActorRef = useRef(gameActorInstance);
   const [gameState, setGameState] = useState<GameState>(gameActorRef.current.getState());
-  const [eventHistory, setEventHistory] = useState<GameEvent[]>([]);
   const directionChangedSinceMove = useRef(false);
 
   const processEvent = (event: GameEvent): GameEvent[] => {
     const resultEvents = gameActorRef.current.handleEvent(event);
-    setEventHistory(prev => [...prev, event, ...resultEvents]);
     return resultEvents;
   };
 

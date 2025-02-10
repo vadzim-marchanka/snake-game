@@ -11,7 +11,7 @@ describe('FoodActor', () => {
   describe('initial state', () => {
     it('should initialize with correct number of food items', () => {
       const foods = foodActor.getFoods();
-      expect(foods).toHaveLength(100); // FOOD_COUNT constant is now 100
+      expect(foods).toHaveLength(10); // FOOD_COUNT constant is 10
     });
 
     it('should generate food items with valid positions', () => {
